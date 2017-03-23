@@ -5,8 +5,8 @@
 package binding
 
 import (
+	"compress/gzip"
 	"encoding/json"
-
 	"net/http"
 )
 
@@ -17,7 +17,18 @@ func (jsonBinding) Name() string {
 }
 
 func (jsonBinding) Bind(req *http.Request, obj interface{}) error {
-	decoder := json.NewDecoder(req.Body)
+	var decoder *json.Decoder
+	switch req.Header.Get("Content-Encoding") {
+	case "gzip":
+		gz, err := gzip.NewReader(req.Body)
+		if err != nil {
+			return err
+		}
+		defer gz.Close()
+		decoder = json.NewDecoder(gz)
+	default:
+		decoder = json.NewDecoder(req.Body)
+	}
 	if err := decoder.Decode(obj); err != nil {
 		return err
 	}
